@@ -19,6 +19,7 @@
 
 - [它解决什么问题](#它解决什么问题)
 - [界面一览](#界面一览)
+- [安卓 APK](#安卓-apk)
 - [完整功能清单](#完整功能清单)
 - [快速开始](#快速开始)
 - [使用指南](#使用指南)
@@ -70,7 +71,7 @@
 
 ![欢迎页](docs/screenshots/02-welcome.png)
 
-- 侧栏常驻「开启新对话」「搜索对话」，空库时给出「发一条消息，或导入官方数据」的引导。
+- 侧栏常驻「开启新对话」「搜索对话」，未登录或空库时给出「发一条消息，或导入官方数据」的引导。
 - 中间是四个建议胶囊（解释概念、写代码、润色文字、整理清单），点一下即填入输入框。
 - 底部是悬浮输入容器：左侧附件按钮（一期占位）、中间多行输入、右侧发送键；空内容时按钮为灰，有内容才变品牌蓝。
 - 输入区下方标注当前模式（「普通对话」或「深度思考」）与「内容由 AI 生成」提示。
@@ -141,6 +142,62 @@
 - 宽度小于 768px 时侧栏收起为抽屉，顶部出现汉堡按钮与标题、更多。
 - 输入区固定在底部并适配 `env(safe-area-inset-bottom)`，键盘弹起不遮挡。
 - 消息、代码块、表格在窄屏下自动换行，长公式可横向滚动。
+
+---
+
+## 安卓 APK
+
+本项目除了网页版，也以 **Capacitor 封装成安卓 App**，装到手机上就是一个独立图标的应用，不依赖浏览器、不需要联网就能打开界面。
+
+### 直接下载安装
+
+到仓库的 [Releases](https://github.com/lizhengyang-byte/deepseek-api-client/releases) 页下载 `DeepSeek-API-Client-*.apk`，传到手机后点击安装：
+
+1. 系统提示「禁止安装未知来源应用」时，在弹窗里选择允许（设置 → 应用 → 特殊权限 → 安装未知应用）
+2. 安装完成后桌面出现「DeepSeek API 版」图标
+3. 首次启动和网页版一样，粘贴 API Key 登录即可
+
+> APK 由 GitHub Actions 自动构建，`0.1.x` 使用调试签名，可直接安装但不可上架应用商店。若要正式发布，请用你自己的 keystore 重新签名（见下文）。
+
+### 自己打包
+
+```bash
+npm install
+
+# 首次：生成原生工程（android/ 目录不入库，随时可重新生成）
+npx cap add android
+
+# 每次改代码后：构建前端并同步进原生工程
+npm run build
+npx cap sync android
+
+# 生成启动图标（可选，需要 Playwright）
+npx playwright install chromium
+node scripts/android-icons.mjs
+
+# 打包 APK
+cd android && ./gradlew assembleDebug
+# 产物：android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+release 包需要在 `android/app/build.gradle` 里配置自己的 keystore，然后：
+
+```bash
+cd android && ./gradlew assembleRelease
+```
+
+### 与网页版的差异
+
+- 界面、功能、数据模型完全一致，同一套代码，只是换了宿主：安卓 WebView 替代浏览器
+- 会话与密钥存在 App 自己的沙箱里（WebView 的 IndexedDB），与浏览器数据互不影响
+- 应用内 `fetch` 直连官方接口；WebView 的 origin 是 `https://localhost`，官方接口已回显该 Origin，因此无需额外代理
+- 手势、状态栏、返回键由系统接管：安卓返回键在会话页回到列表，在列表页退出
+- 卸载 App 会连同本地会话一起删除，请先用「导出全部会话」做备份
+
+### 环境要求
+
+- 打包机：JDK 17 + Android SDK（platform 34 / build-tools 34）
+- 手机：Android 5.1（API 22）及以上，系统 WebView 版本 60+
 
 ---
 
@@ -252,7 +309,7 @@ npm run preview      # 本地预览构建产物
 - **纯本地**：会话、消息、用量、设置全部存在浏览器 IndexedDB（库名 `deepseek-api-client`），无后端、无埋点、无上报
 - **密钥加密**：主密钥由 WebCrypto 生成（`extractable: false`），存在独立的 IndexedDB 库；密文与随机 IV 分开保存，明文只在发请求前解密到内存变量
 - **导出可控**：备份文件由你主动触发，不含密钥与令牌
-- **风险自担**：清理站点数据会丢库，请定期「导出全部会话」备份
+- **风险自担**：清理站点数据会丢库，请定期「导出全部会话」备份；本应用不承担密钥保管责任
 
 ---
 
@@ -286,7 +343,8 @@ src/
   types/        共享类型
   styles/       设计令牌、Markdown 排版、滚动条
 tests/          导入解析（5 项）与 SSE 解码（4 项）单测
-scripts/        界面截图脚本（Playwright）
+scripts/        界面截图脚本、安卓图标生成脚本
+assets/android/ 启动图标源文件（SVG）
 docs/           技术设计文档、项目规划文档、界面截图
 public/         图标
 ```
@@ -311,10 +369,11 @@ npm run screenshots                  # 输出到 docs/screenshots/
 
 脚本用 `page.route` 拦截 `api.deepseek.com`，返回一份固定的余额与 SSE 假数据，然后走真实的登录、发消息、导入、切主题、切移动端流程，因此截到的是**真实渲染结果**，不是设计稿。本机已有 Chromium 时可用 `CHROMIUM_PATH=/usr/bin/chromium npm run screenshots` 跳过下载。
 
-仓库内置两条 GitHub Actions：
+仓库内置三条 GitHub Actions：
 
 - `ci.yml`：每次 push 跑类型检查、单测与构建
 - `screenshots.yml`：改了界面或截图脚本时自动重跑截图并提交回仓库
+- `android.yml`：构建安卓 APK 并发布到 Releases（`android-latest`）
 
 ---
 
@@ -333,7 +392,7 @@ npm run screenshots                  # 输出到 docs/screenshots/
 它等同于你的网页登录态，只保存在本机加密库中；但该通道依赖非公开接口，随时可能失效，建议优先用 API Key。
 
 **Q：能当 App 装吗？**
-可以。`dist/` 是标准静态站点，可加 PWA 配置装到桌面/主屏，或用 Capacitor 打包 Android/iOS 壳，存储层无需改动。
+可以，仓库已提供安卓 APK：到 [Releases](https://github.com/lizhengyang-byte/deepseek-api-client/releases) 下载装上即可，打包细节见 [安卓 APK 说明](docs/android.md)。iOS 需在 macOS 上用 Capacitor 自行打包。
 
 ---
 
@@ -354,6 +413,7 @@ npm run screenshots                  # 输出到 docs/screenshots/
 - [ ] 提示词库与快捷键
 - [ ] 可选自建同步服务（端到端加密）
 - [ ] 模型适配器插件化
+- [x] 安卓 APK 封装（Capacitor）
 
 ---
 
@@ -363,12 +423,13 @@ npm run screenshots                  # 输出到 docs/screenshots/
 
 - [技术设计文档](docs/technical-design.md)
 - [项目规划文档](docs/project-plan.md)
+- [安卓 APK 安装与打包](docs/android.md)
 
 ---
 
 ## English
 
-An **unofficial**, open-source web client for DeepSeek:
+An **unofficial**, open-source client for DeepSeek, shipped both as a web app and as an **Android APK** (Capacitor WebView wrapper):
 
 - Sign in with your own **API key** (billed through the official API) or an experimental web-session token
 - **Import** the official data export (`.zip` / `.json`) and **continue the conversation** where it stopped
