@@ -24,6 +24,7 @@
 - [完整功能清单](#完整功能清单)
 - [快速开始](#快速开始)
 - [使用指南](#使用指南)
+- [最小 Agent：联网搜索 + 持续对话](#最小-agent联网搜索--持续对话)
 - [官方数据导入与续聊](#官方数据导入与续聊)
 - [数据与隐私](#数据与隐私)
 - [技术架构](#技术架构)
@@ -40,16 +41,17 @@
 
 官方 App 用起来顺手，但它的会话数据留在官方账户里：导出来的只是一个 `.zip`，里面是几百 KB 的 JSON，翻不动、搜不了、也接不上后续提问；而想用自己充值的 API 余额，官方并没有提供一个「长得像 App、数据在自己机器上」的客户端。
 
-这个项目把三件事接在一起：
+这个项目把四件事接在一起：
 
 | 你想要的 | 这里的实现 |
 | --- | --- |
 | 用**自己的 API 余额**，而不是网页额度 | 直连官方 OpenAI 兼容接口，余额在应用内可查，每条回答显示 token 与费用估算 |
 | 把**官方导出的历史会话**接着聊下去 | 拖入导出包（或直接粘下载链接）→ 本地解析 → 归一化入库 → 历史消息变成可继续追问的会话，与新消息同库同结构 |
+| 需要时**联网查一下再答** | 输入栏「联网」开关，模型自己判断要不要检索；搜到的前 5 条来源附在答案末尾，不多步规划、不多花 token |
 | 界面**就是那个 App 的样子** | 布局、间距、圆角、品牌蓝、气泡、侧栏分组、明暗主题、移动端抽屉逐项对齐；安卓 APK 装到手机后就是一个独立 App |
 | 数据**只在自己手里** | 纯前端、无后端，会话存 IndexedDB，凭证 AES-GCM 加密后本地保存，不上传任何服务器 |
 
-一句话：**它是「官方 App 的界面 + 你自己的 API 余额 + 你自己机器上的历史数据」，而且能直接装成安卓 App。**
+一句话：**它是「官方 App 的界面 + 你自己的 API 余额 + 你自己机器上的历史数据」，而且能直接装成安卓 App；需要时多一个「帮我查一下」的开关。**
 
 ---
 
@@ -75,8 +77,7 @@
 
 - 侧栏常驻「开启新对话」「搜索对话」，未登录或空库时给出「发一条消息，或导入官方数据」的引导。
 - 中间是四个建议胶囊（解释概念、写代码、润色文字、整理清单），点一下即填入输入框。
-- 底部是悬浮输入容器：左侧附件按钮（一期占位）、中间多行输入、右侧发送键；空内容时按钮为灰，有内容才变品牌蓝。
-- 输入区下方标注当前模式（「普通对话」或「深度思考」）与「内容由 AI 生成」提示。
+- 底部是悬浮输入容器：左侧附件按钮（一期占位）、「联网」与模式切换、右侧发送键；空内容时按钮为灰，有内容才变品牌蓝。
 
 ### 3. 对话页（普通对话）
 
@@ -84,7 +85,7 @@
 
 - 消息区单列，最大阅读宽度约 760px；用户消息靠右、浅灰气泡；助手消息无气泡直接排版，读长文更像文档。
 - Markdown 全量渲染：标题、列表、表格、代码块（highlight.js 高亮）、行内与块级公式（KaTeX）。
-- 顶部是会话标题（可改）、右侧「更多」菜单；每条助手消息悬浮出现复制、删除。
+- 顶部是会话标题（可改）、右侧「更多」菜单；每条助手消息悬浮出现复制、重新生成、删除。
 - 侧栏按「今天 / 近 7 天 / 更早」分组，置顶会话单独一组，导入来的会话带一个「导入」角标。
 
 ### 4. 深度思考（R1）
@@ -119,7 +120,6 @@
 - 生成参数：温度滑杆（0–1.5）、最大输出 tokens、回传历史轮数（导入会话续聊时的上下文窗口）。
 - 系统提示词输入框，长期生效的设定可以写在这里。
 - 计费单价按「元 / 百万 tokens」填写，输入输出分开；默认值仅为示例，请以官方最新价格为准。
-- 主题（深色 / 浅色）也在这页。
 
 ### 8. 设置 · 数据
 
@@ -128,7 +128,6 @@
 - 「导入官方导出数据」直达导入弹窗。
 - 「导出全部会话 JSON」把当前所有会话、消息打成一份可再导入的备份文件。
 - 「清空本地会话数据」带二次确认，清空后请用备份恢复。
-- 关于区块说明项目定位与许可。
 
 ### 9. 深色模式
 
@@ -152,6 +151,14 @@
 - 粘贴官方「数据导出」给出的下载链接，点「下载并导入」：下载 → 解压 → 解析 → 预览 → 写库，一条链路走完。
 - 链接带时效签名或需要登录态时，会分别给出「链接已失效」「需要登录 cookie」的明确提示，并建议改走本地文件，而不是抛一个网络错误。
 - 解析与写库完全复用本地导入的同一套代码，行为一致。
+
+### 12. 联网搜索配置
+
+![联网搜索配置](docs/screenshots/13-search-setup.png)
+
+- 输入栏左下的「联网」是唯一的 Agent 开关；没配置过接口时，点它会直接弹出这张面板。
+- 只有三个必要项：接口类型、地址、密钥（SearXNG 不需要密钥），保存即开启。
+- 搜索由你自己的接口完成，应用只转发查询词，不代管也不上传密钥。
 
 ---
 
@@ -230,6 +237,14 @@ cd android && ./gradlew assembleRelease
 - 历史上下文按「回传轮数」裁剪，控制成本
 - 深度思考内容折叠展示
 
+**最小 Agent（联网搜索）**
+
+- 输入栏「联网」开关：由模型自己判断要不要查网，不需要你写提示词
+- 一次检索上限 5 条、单条约 260 字，避免把上下文撑爆、也避免多花 token
+- 答案末尾自动附搜索来源（Markdown 链接），可点开核对
+- 搜索失败、未配置、超时一律降级为普通对话，不中断回答
+- 只在 API Key 通道生效；网页令牌通道保持官方原生会话，不注入外部资料
+
 **数据**
 
 - 官方导出包导入：本地文件（拖拽/选择）与**下载链接直连**两种入口，共用同一套解析管线
@@ -304,6 +319,56 @@ npm run preview      # 本地预览构建产物
 
 ---
 
+## 最小 Agent：联网搜索 + 持续对话
+
+它只做两件事，不做更多：
+
+1. **持续对话**：你原来的会话（包括从官方导出包导入的历史）都留在同一个库里，随时接着聊；
+2. **联网搜索**：需要时由模型自己判断要不要查一次网，查到结果再作答。
+
+没有多步规划、没有工具循环、没有后台任务，也不额外养一个「思考该用哪个工具」的模型。
+
+### 怎么用
+
+1. 点输入栏的「联网」；未配置过接口时先弹出配置面板；
+2. 选接口类型、填地址（Tavily 再填 Key），保存后「联网」变蓝即为开启状态；再点一次关闭；
+3. 正常提问，模型自己决定这次要不要检索。
+
+### 一次回答里发生的事
+
+| 步骤 | 请求 | 说明 |
+| --- | --- | --- |
+| 1 | `deepseek-chat` + 一个 `search_web` 工具 | 只让它回答「要不要搜、搜什么」，`max_tokens=128`、温度 0，便宜且快 |
+| 2 | 你自己配置的搜索接口 | 取前 5 条结果，压成一段带编号的资料 |
+| 3 | 当前模型（`deepseek-chat` 或 `deepseek-reasoner`） | 带着资料块流式作答，并把来源列表附在末尾 |
+
+模型判断「不需要搜」时，第 1 步返回空，直接进第 3 步，和普通对话没有任何差别。
+
+### 为什么不做更重的 Agent
+
+- 纯前端没有服务端来跑长任务，多一步就多一次等待；
+- 每多一轮工具调用都要花你自己的 token，而多数问题一句话就能答；
+- 官方 App 的体验是「问一句、得一段答案」，不是看一个黑板上推演；
+- 所以这里的取舍是：**宁可少一步，也不要为了像 Agent 而变慢、变贵。**
+
+### 搜索接口
+
+| 类型 | 需要准备 | 说明 |
+| --- | --- | --- |
+| SearXNG | 自建实例，开启 JSON 输出 | 免费、可控；请求 `{地址}/search?q=…&format=json` |
+| Tavily | `tvly-` 开头的 API Key | 免部署，地址默认 `https://api.tavily.com/search` |
+| 自定义 | 任意返回 `{"results":[{"title","url","content"}]}` 的接口 | 会用 `?q=` 拼接关键词，适合挂在自己的反代上 |
+
+要求只有一条：接口必须允许跨域（CORS）。网页版与安卓 WebView 都受这一限制，接口不给 `Access-Control-Allow-Origin` 时会直接失败。
+
+### 边界
+
+- 只有在 API Key 通道下才启用；网页令牌通道走官方会话接口，不注入外部资料。
+- 一次回答最多检索一次，不做「搜完再搜」的多轮扩展。
+- 搜索失败、超时、没配置：一律退化成普通对话，并在底部提示一句原因。
+
+---
+
 ## 官方数据导入与续聊
 
 1. 官方 App / 网页：设置 → 数据导出，拿到压缩包，或直接复制页面给出的**下载链接**
@@ -326,6 +391,7 @@ npm run preview      # 本地预览构建产物
 
 - **纯本地**：会话、消息、用量、设置全部存在浏览器 IndexedDB（库名 `deepseek-api-client`），无后端、无埋点、无上报
 - **密钥加密**：主密钥由 WebCrypto 生成（`extractable: false`），存在独立的 IndexedDB 库；密文与随机 IV 分开保存，明文只在发请求前解密到内存变量
+- **搜索配置也只在本地**：搜索接口地址与密钥跟随其他设置一起存本地库，只在请求时解密使用，不随会话导出
 - **导出可控**：备份文件由你主动触发，不含密钥与令牌
 - **风险自担**：清理站点数据（或卸载 App）会丢库，请定期「导出全部会话」备份；本应用不承担密钥保管责任
 
@@ -338,9 +404,9 @@ npm run preview      # 本地预览构建产物
 | 层 | 职责 | 实现 |
 | --- | --- | --- |
 | 视图层 | 页面、消息渲染、输入框、设置、导入 | React 组件 + Tailwind |
-| 状态层 | 会话增删改、流式片段合并、选中会话 | Zustand |
-| 领域层 | 上下文裁剪、导入归一化、费用计算、导出 | 纯函数模块 |
-| 基础设施层 | IndexedDB、官方 API / 网页通道、加解密、原生登录桥 | Dexie / fetch / WebCrypto / Capacitor 插件 |
+| 状态层 | 会话增删改、流式片段合并、检索调度、选中会话 | Zustand |
+| 领域层 | 上下文裁剪、检索与降级、导入归一化、费用计算、导出 | 纯函数模块 |
+| 基础设施层 | IndexedDB、官方 API / 网页通道、搜索接口、加解密、原生登录桥 | Dexie / fetch / WebCrypto / Capacitor 插件 |
 
 技术栈：React 18 · TypeScript 5 · Vite 5 · Tailwind CSS 3 · Zustand · Dexie · react-markdown + remark-gfm + remark-math + rehype-katex + rehype-highlight · JSZip · lucide-react · Capacitor 6
 
@@ -353,14 +419,15 @@ npm run preview      # 本地预览构建产物
 ```
 src/
   components/   界面：Sidebar、ChatView、Composer、MessageItem、ThinkingBlock、
-                Markdown、LoginScreen、SettingsPanel、ImportDialog、Logo
-  store/        Zustand：auth（登录/余额）、settings（模型/主题/单价）、chat（会话与流式）
+                Markdown、LoginScreen、SettingsPanel、ImportDialog、SearchDialog、Logo
+  store/        Zustand：auth（登录/余额）、settings（模型/主题/单价/搜索）、chat（会话与流式）
   lib/          传输：deepseek（API）、web（网页通道）、sse（解码）
                 存储：db（Dexie）、crypto（AES-GCM）
                 领域：importer（导出包归一化）、usage（计费）、export（备份）
+                最小 Agent：agent（检索调度、搜索适配、结果压缩）
                 登录：credential（凭证识别）、linkImport（链接下载）、nativeLogin（原生桥）
   types/        共享类型
-  styles/       设计令牌、Markdown 排版、滚动条
+  styles/       设计令牌、Markdown 排版、滚动条、动效
 native/android/ App 内登录原生插件源码（WebLoginPlugin、MainActivity）
 tests/          导入解析、SSE 解码、凭证识别与链接校验单测（17 项）
 scripts/        界面截图、安卓图标、原生工程插件注入
@@ -402,6 +469,12 @@ npm run screenshots                  # 输出到 docs/screenshots/
 **Q：会不会额外收费？**
 不会。请求直接打到官方接口，费用由官方按你账户的 API 余额结算；本应用只做用量展示与估算。
 
+**Q：联网搜索会额外收费吗？搜一次花多少？**
+调度那一步是一次 `deepseek-chat` 小请求（`max_tokens=128`），正式作答本来就会发生，所以额外成本基本可以忽略；搜索接口本身的费用取决于你选的 SearXNG（自建免费）或 Tavily（按其定价）。
+
+**Q：开启联网后会不会每次都搜？**
+不会。要不要搜由模型判断：常识、写作、计算类问题通常不搜；涉及最新消息、具体数据、今天之前发生的事才会搜。
+
 **Q：分不清自己手里的串是 API Key 还是网页令牌？**
 不用分。直接粘进登录框，应用会按形态自动判断通道并做对应校验；认不出来会提示原因。
 
@@ -429,7 +502,9 @@ npm run screenshots                  # 输出到 docs/screenshots/
 
 - 一期不含图片/文件问答、语音输入、多端云同步
 - 网页通道不保证长期可用，主路径是 API Key；App 内登录依赖官方登录页当前的令牌存放方式
-- 链接导入受跨域与登录态限制，被拦截时需改成本地文件
+- 链接导入与联网搜索都受跨域与登录态限制，被拦截时需改用本地文件 / 自建接口带 CORS
+- 联网搜索一次回答最多一次检索，不做多跳扩展；需要多步调研请自行多次追问
+- Agent 能力只到「查一次资料」这一层：没有多工具编排、没有任务规划、没有自动重试链
 - 费用为估算，真实账单以官方控制台为准
 - 浏览器清理站点数据（或卸载 App）会丢失本地会话，请定期导出备份
 - 界面按官方观感对齐，但不使用官方商标与图形素材，因此图标为自绘 / 开源图标库
@@ -444,6 +519,8 @@ npm run screenshots                  # 输出到 docs/screenshots/
 - [ ] 可选自建同步服务（端到端加密）
 - [ ] 模型适配器插件化
 
+> Agent 方向不做 roadmap 扩张：保持「一次检索 + 连续对话」的轻量形态，除非有明确证据说明多步能力真的必要。
+
 ---
 
 ## 开源协议与贡献
@@ -453,6 +530,7 @@ npm run screenshots                  # 输出到 docs/screenshots/
 - [技术设计文档](docs/technical-design.md)
 - [项目规划文档](docs/project-plan.md)
 - [安卓 APK 安装与打包](docs/android.md)
+- [更新日志](CHANGELOG.md)
 
 ---
 
@@ -463,6 +541,7 @@ An **unofficial**, open-source client for DeepSeek, shipped both as a web app an
 - Sign in with your own **API key** (billed through the official API) or a web-session token — one input box auto-detects which kind you pasted
 - **Sign in inside the app** (Android): the official login page opens in a WebView and the session token is handed back automatically
 - **Import** the official data export — either pick the `.zip` / `.json`, or paste the export download link and let the app fetch it — and **continue the conversation** where it stopped
+- **A minimal agent, on purpose**: one "Web search" toggle in the composer. The model decides whether it needs a lookup, results are capped at five sources per turn and listed under the answer — no planners, no tool loops, no extra token spend
 - UI follows the official app's layout, spacing and interaction rhythm, rebuilt with an original icon set
 - Everything stays local: IndexedDB for chats, AES-GCM encrypted credentials, zero backend
 
