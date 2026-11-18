@@ -148,6 +148,7 @@ async function main() {
     deviceScaleFactor: 2,
     locale: 'zh-CN',
   });
+
   const page = await context.newPage();
 
   await page.route('**://api.deepseek.com/**', async (route) => {
@@ -187,8 +188,8 @@ async function main() {
   await page.waitForSelector('text=登录 DeepSeek API 版', { timeout: 20000 });
   await shot('01-login');
 
-  await page.fill('input[placeholder="sk-..."]', 'sk-demo-0000000000000000000000000000');
-  await page.click('text=登录并校验密钥');
+  await page.fill('input[placeholder*="sk-..."]', 'sk-demo-0000000000000000000000000000');
+  await page.getByRole('button', { name: '登录', exact: true }).click();
   await page.waitForSelector('text=开启新对话', { timeout: 20000 });
   await page.waitForTimeout(900);
   await shot('02-welcome');
@@ -233,6 +234,13 @@ async function main() {
   await page.setInputFiles('input[type="file"]', samplePath);
   await page.waitForSelector('text=已解析', { timeout: 10000 });
   await shot('05-import');
+
+  // 链接导入：切到「下载链接」页签，填一个演示链接（不发真实请求）
+  await page.click('button:has-text("下载链接")');
+  await page.waitForTimeout(300);
+  await page.fill('input[placeholder^="粘贴官方数据导出"]', 'https://example.com/deepseek-export-2026-11.zip');
+  await shot('11-import-link');
+
   await page.click('text=取消');
   await page.waitForTimeout(400);
   fs.rmSync(samplePath, { force: true });
