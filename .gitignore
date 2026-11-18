@@ -9,3 +9,6 @@ coverage
 .env
 .env.*
 !.env.example
+
+# Android / Capacitor 生成物（可用 npx cap add android 重新生成）
+android/

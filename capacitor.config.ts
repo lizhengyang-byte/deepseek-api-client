@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'DeepSeek API 版',
   webDir: 'dist',
   android: {
-    backgroundColor: '#ffffff',
+    // WebView 内直接 fetch 官方接口，避免被 MixedContent 拦截
     allowMixedContent: false,
   },
   server: {

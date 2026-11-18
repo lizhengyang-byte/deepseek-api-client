@@ -15,6 +15,7 @@
     "screenshots": "node scripts/screenshots.mjs",
     "android:add": "npx cap add android",
     "android:sync": "npm run build && npx cap sync android",
+    "android:icons": "node scripts/android-icons.mjs",
     "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {

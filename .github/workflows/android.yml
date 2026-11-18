@@ -9,6 +9,8 @@ on:
       - 'package.json'
       - 'src/**'
       - 'index.html'
+      - 'assets/android/**'
+      - 'scripts/android-icons.mjs'
       - '.github/workflows/android.yml'
 
 permissions:
@@ -31,6 +33,8 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
+      - uses: gradle/actions/setup-gradle@v4
+
       - name: Install dependencies
         run: npm install
 
@@ -39,14 +43,22 @@ jobs:
 
       - name: Generate Android project
         run: |
-          npx cap add android
-          npx cap sync android
+          if [ -d android ]; then
+            npx cap sync android
+          else
+            npx cap add android
+            npx cap sync android
+          fi
+
+      - name: Generate launcher icons
+        run: |
+          npx playwright install --with-deps chromium
+          node scripts/android-icons.mjs
 
       - name: Build APK
         run: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          gradle assembleDebug --no-daemon
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -58,10 +70,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk "DeepSeek-API-Client-${GITHUB_RUN_NUMBER}-debug.apk"
           gh release view android-latest >/dev/null 2>&1 || \
           gh release create android-latest \
             --title "Android APK（自动构建）" \
-            --notes "由 GitHub Actions 自动构建的调试版 APK，可直接安装到安卓手机。首次安装需在系统设置中允许「安装未知来源应用」。" \
+            --notes "由 GitHub Actions 自动构建的调试签名 APK，可直接安装到安卓手机。首次安装需在系统设置中允许「安装未知来源应用」。" \
             --latest=false
-          cp android/app/build/outputs/apk/debug/app-debug.apk "DeepSeek-API-Client-android-debug.apk"
-          gh release upload android-latest "DeepSeek-API-Client-android-debug.apk" --clobber
+          gh release upload android-latest "DeepSeek-API-Client-${GITHUB_RUN_NUMBER}-debug.apk" --clobber
