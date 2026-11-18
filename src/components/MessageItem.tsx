@@ -31,11 +31,11 @@ export function MessageItem({ message, streaming, onRegenerate, onDelete }: Prop
 
   if (message.role === 'user') {
     return (
-      <div className="group flex flex-col items-end gap-1 py-3">
+      <div className="msg-in group flex flex-col items-end gap-1 py-3">
         <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-bubble bg-[color:var(--bubble-user)] px-4 py-2.5 text-[15px] leading-7">
           {message.content}
         </div>
-        <div className="flex items-center gap-3 pr-1 opacity-0 transition group-hover:opacity-100">
+        <div className="flex items-center gap-3 pr-1 opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
           <span className="text-[11px] text-muted">{formatTime(message.createdAt)}</span>
           <button
             type="button"
@@ -65,7 +65,7 @@ export function MessageItem({ message, streaming, onRegenerate, onDelete }: Prop
   const showCaret = message.status === 'streaming' && streaming && !message.content;
 
   return (
-    <div className="group py-3">
+    <div className="msg-in group py-3">
       <div className="flex gap-3">
         <Logo size={28} className="mt-0.5 shrink-0" />
         <div className="min-w-0 flex-1">
@@ -84,7 +84,7 @@ export function MessageItem({ message, streaming, onRegenerate, onDelete }: Prop
           {message.status === 'interrupted' && (
             <p className="mt-2 text-[13px] text-muted">已停止生成</p>
           )}
-          <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted opacity-0 transition group-hover:opacity-100">
+          <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[11px] text-muted opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
             <button
               type="button"
               className="flex items-center gap-1 hover:text-ink"
