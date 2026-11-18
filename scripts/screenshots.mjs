@@ -271,6 +271,11 @@ async function main() {
   await page.waitForTimeout(700);
   await shot('10-mobile-chat');
 
+  // 移动端抽屉：确认主题 / 设置 / 关闭三个按钮各自独立、互不遮挡
+  await page.click('button[aria-label="打开菜单"]');
+  await page.waitForTimeout(500);
+  await shot('12-mobile-drawer');
+
   await context.close();
   await browser.close();
   server.close();
