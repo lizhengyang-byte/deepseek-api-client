@@ -1,0 +1,52 @@
+name: Bug 反馈
+description: 报告一个可复现的问题
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请勿粘贴真实 API Key、userToken 或包含隐私的对话内容。导入相关问题请附脱敏后的最小结构样例。
+  - type: input
+    id: env
+    attributes:
+      label: 运行环境
+      description: 浏览器版本 / 操作系统 / 是否部署在代理后
+      placeholder: Chrome 129 · macOS 15
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开…
+        2. 点击…
+        3. 出现…
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      description: 如有报错，请贴控制台文本（注意删除密钥）
+    validations:
+      required: true
+  - type: dropdown
+    id: channel
+    attributes:
+      label: 使用的接入通道
+      options:
+        - API Key
+        - 官方网页令牌
+        - 两者都有
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: 截图、相关会话情况（脱敏）等

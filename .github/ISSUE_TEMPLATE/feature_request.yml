@@ -1,0 +1,27 @@
+name: 功能建议
+description: 提出一个改进或新能力
+labels: [enhancement]
+body:
+  - type: textarea
+    id: scene
+    attributes:
+      label: 使用场景
+      description: 你在做什么事情时遇到了不便
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 当前的问题
+      description: 现在是怎么做的，哪里不顺手
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望的做法
+      description: 描述交互即可，不必先写实现方案
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的替代方案
