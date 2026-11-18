@@ -1,28 +1,73 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Globe, KeyRound, Loader2 } from 'lucide-react';
+import { ClipboardPaste, Eye, EyeOff, Globe, KeyRound, Loader2, LogIn, ShieldCheck } from 'lucide-react';
 import { Logo } from './Logo';
 import { useAuth } from '../store/auth';
 import { useSettings } from '../store/settings';
+import { credentialLabel, detectCredential, normalizeCredential } from '../lib/credential';
+import { canUseNativeLogin, nativeWebLogin } from '../lib/nativeLogin';
 
 export function LoginScreen() {
-  const [tab, setTab] = useState<'apikey' | 'web'>('apikey');
-  const [key, setKey] = useState('');
-  const [token, setToken] = useState('');
+  const [input, setInput] = useState('');
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [hint, setHint] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
 
-  const loginApiKey = useAuth((state) => state.loginApiKey);
-  const loginWeb = useAuth((state) => state.loginWeb);
+  const loginAuto = useAuth((state) => state.loginAuto);
   const baseUrl = useSettings((state) => state.baseUrl);
 
-  const submit = async () => {
+  const kind = detectCredential(normalizeCredential(input));
+  const nativeLoginReady = canUseNativeLogin();
+
+  const submit = async (raw?: string) => {
+    const value = raw ?? input;
     setBusy(true);
     setError('');
+    setHint('');
     try {
-      const result =
-        tab === 'apikey' ? await loginApiKey(key, baseUrl) : await loginWeb(token);
+      const result = await loginAuto(value, baseUrl);
       if (!result.ok) setError(result.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const useClipboard = async () => {
+    setError('');
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text?.trim()) {
+        setHint('剪贴板是空的，请先复制再点这个按钮');
+        return;
+      }
+      setInput(text.trim());
+      setHint('已从剪贴板填入，确认无误后点「登录」');
+      if (detectCredential(normalizeCredential(text)) !== 'unknown') await submit(text);
+    } catch {
+      setHint('浏览器没有授予剪贴板权限，请手动粘贴');
+    }
+  };
+
+  const useNativeLogin = async () => {
+    setBusy(true);
+    setError('');
+    setHint('已打开官方登录页，登录成功会自动把令牌带回来');
+    try {
+      const result = await nativeWebLogin();
+      if (result.cancelled) {
+        setHint('已取消登录');
+        return;
+      }
+      if (!result.token) {
+        setError('没有取到登录令牌，请改用粘贴方式');
+        return;
+      }
+      setInput(result.token);
+      const logged = await loginAuto(result.token, baseUrl);
+      if (!logged.ok) setError(logged.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'App 内登录失败');
     } finally {
       setBusy(false);
     }
@@ -31,104 +76,130 @@ export function LoginScreen() {
   return (
     <div className="flex min-h-full items-center justify-center bg-[color:var(--bg-page)] px-5 py-10">
       <div className="w-full max-w-[420px]">
-        <div className="mb-8 flex flex-col items-center text-center">
+        <div className="mb-7 flex flex-col items-center text-center">
           <Logo size={52} />
           <h1 className="mt-4 text-[20px] font-semibold">登录 DeepSeek API 版</h1>
           <p className="mt-1.5 text-[13px] leading-6 text-muted">
-            使用官方账号接入，按 API 用量计费
+            粘贴 API Key 或官方登录令牌，自动识别通道
           </p>
         </div>
 
-        <div className="mb-4 flex rounded-full bg-[color:var(--bg-card)] p-1">
-          <button
-            type="button"
-            onClick={() => setTab('apikey')}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] transition ${
-              tab === 'apikey' ? 'bg-[color:var(--bg-surface)] font-medium shadow-sm' : 'text-muted'
-            }`}
-          >
-            <KeyRound size={14} /> API Key
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('web')}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] transition ${
-              tab === 'web' ? 'bg-[color:var(--bg-surface)] font-medium shadow-sm' : 'text-muted'
-            }`}
-          >
-            <Globe size={14} /> 官方网页登录
-          </button>
+        <div className="rounded-[18px] border border-line bg-[color:var(--bg-surface)] p-4">
+          <div className="flex items-center justify-between">
+            <label className="text-[13px] font-medium">登录凭证</label>
+            <button
+              type="button"
+              onClick={useClipboard}
+              className="flex items-center gap-1 text-[12px] text-brand"
+            >
+              <ClipboardPaste size={13} /> 从剪贴板填入
+            </button>
+          </div>
+
+          <div className="mt-2 flex items-start gap-2 rounded-xl border border-line bg-[color:var(--bg-card)] px-3 py-2.5">
+            <input
+              type={visible ? 'text' : 'password'}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !busy && input.trim()) void submit();
+              }}
+              placeholder="sk-... 或 eyJhbGciOi...（两者都行）"
+              autoComplete="off"
+              spellCheck={false}
+              className="w-full bg-transparent text-[14px] outline-none placeholder:text-muted"
+            />
+            <button
+              type="button"
+              onClick={() => setVisible((value) => !value)}
+              className="mt-0.5 shrink-0 text-muted"
+              aria-label="显示或隐藏凭证"
+            >
+              {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+
+          <p className="mt-2 flex items-center gap-1.5 text-[12px] text-muted">
+            {kind === 'apikey' ? (
+              <KeyRound size={13} className="text-brand" />
+            ) : (
+              <Globe size={13} className="text-brand" />
+            )}
+            {credentialLabel(kind)}
+          </p>
+
+          {nativeLoginReady && (
+            <button
+              type="button"
+              onClick={useNativeLogin}
+              disabled={busy}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-[color:var(--bg-card)] py-2.5 text-[13px] transition hover:border-brand disabled:opacity-60"
+            >
+              <Globe size={14} className="text-brand" />
+              在 App 内登录官方账号（自动带回令牌）
+            </button>
+          )}
         </div>
 
-        {tab === 'apikey' ? (
-          <div className="fade-in">
-            <label className="text-[13px] font-medium">API Key</label>
-            <div className="mt-2 flex items-center gap-2 rounded-xl border border-line bg-[color:var(--bg-surface)] px-3 py-2.5">
-              <input
-                type={visible ? 'text' : 'password'}
-                value={key}
-                onChange={(event) => setKey(event.target.value)}
-                placeholder="sk-..."
-                autoComplete="off"
-                className="w-full bg-transparent text-[14px] outline-none placeholder:text-muted"
-              />
-              <button type="button" onClick={() => setVisible((v) => !v)} className="text-muted">
-                {visible ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-            <p className="mt-2 text-[12px] leading-5 text-muted">
-              在开放平台「API keys」页面创建，形如 sk-xxx。密钥经 AES-GCM 加密后只存在本机，
-              不会上传到任何服务器。
-            </p>
-            <a
-              href="https://platform.deepseek.com/api_keys"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1 inline-block text-[12px] text-brand"
-            >
-              去开放平台创建密钥 →
-            </a>
-          </div>
-        ) : (
-          <div className="fade-in">
-            <p className="text-[12.5px] leading-6 text-muted">
-              在浏览器中登录官方网页（chat.deepseek.com），登录后从浏览器本地存储取出
-              <b> userToken </b>，粘贴到下方即可用本账号对话。
-            </p>
-            <ol className="mt-2 list-decimal space-y-1 pl-4 text-[12px] leading-5 text-muted">
-              <li>桌面浏览器按 F12 打开开发者工具 → Application → Local Storage</li>
-              <li>找到 chat.deepseek.com 下的 userToken，复制其值</li>
-              <li>粘贴到这里，点击连接（仅本机保存）</li>
-            </ol>
-            <label className="mt-4 block text-[13px] font-medium">网页会话令牌</label>
-            <textarea
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-              rows={4}
-              placeholder="粘贴 userToken"
-              className="mt-2 w-full resize-none rounded-xl border border-line bg-[color:var(--bg-surface)] px-3 py-2.5 text-[13px] outline-none placeholder:text-muted"
-            />
-            <p className="mt-2 text-[12px] leading-5 text-muted">
-              该通道依赖官方网页非公开接口，可能随官方调整失效；不产生 API 账单，额度按网页账号规则计。
-            </p>
-          </div>
+        {(error || hint) && (
+          <p className={`mt-3 text-[12.5px] leading-5 ${error ? 'text-[color:#e5484d]' : 'text-muted'}`}>
+            {error || hint}
+          </p>
         )}
-
-        {error && <p className="mt-3 text-[12.5px] text-[color:#e5484d]">{error}</p>}
 
         <button
           type="button"
-          onClick={submit}
-          disabled={busy}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 text-[14px] font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+          onClick={() => submit()}
+          disabled={busy || !input.trim()}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 text-[14px] font-medium text-white transition hover:opacity-90 disabled:opacity-60"
         >
-          {busy && <Loader2 size={15} className="animate-spin" />}
-          {tab === 'apikey' ? '登录并校验密钥' : '连接网页通道'}
+          {busy ? <Loader2 size={15} className="animate-spin" /> : <LogIn size={15} />}
+          登录
         </button>
+
+        <button
+          type="button"
+          onClick={() => setHelpOpen((value) => !value)}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 text-[12px] text-muted"
+        >
+          <ShieldCheck size={13} /> 两种凭证从哪里来？
+        </button>
+
+        {helpOpen && (
+          <div className="fade-in mt-3 space-y-3 rounded-[14px] bg-[color:var(--bg-card)] p-3.5 text-[12px] leading-5 text-muted">
+            <div>
+              <p className="font-medium text-ink">API Key（推荐，按 API 用量计费）</p>
+              <p>
+                打开{' '}
+                <a
+                  className="text-brand"
+                  href="https://platform.deepseek.com/api_keys"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  开放平台 API keys
+                </a>
+                ，创建后复制 <code>sk-</code> 开头的密钥。登录前会先请求一次余额接口，无效密钥不会入库。
+              </p>
+            </div>
+            <div>
+              <p className="font-medium text-ink">官方网页令牌（不产生 API 账单，稳定性弱一些）</p>
+              <p>
+                安卓 App 里点「在 App 内登录官方账号」，在弹出的官方页面完成登录，令牌自动回填；
+                网页版则在浏览器登录 chat.deepseek.com 后，从开发者工具 Local Storage 复制
+                <code> userToken</code> 粘贴进来。该通道依赖官方网页接口，官方改版可能失效。
+              </p>
+            </div>
+            <div>
+              <p className="font-medium text-ink">凭证怎么保管</p>
+              <p>两类凭证都用 AES-GCM 加密后存本机，不上传任何服务器；清除应用数据会一并删除。</p>
+            </div>
+          </div>
+        )}
 
         <p className="mt-6 text-center text-[11.5px] leading-5 text-muted">
           本项目为非官方开源客户端，与 DeepSeek 官方无隶属关系。<br />
-          请自行遵守官方服务条款，妥善保管账号与密钥。
+          请自行遵守官方服务条款，妥善保管账号与凭证。
         </p>
       </div>
     </div>
