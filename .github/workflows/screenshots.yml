@@ -1,0 +1,38 @@
+name: screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/screenshots.mjs'
+      - '.github/workflows/screenshots.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      - run: npm run build
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run screenshots
+
+      - name: Commit screenshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots
+          git commit -m "chore: 更新界面截图（CI 自动生成）" || echo "没有新的截图变更"
+          git push
