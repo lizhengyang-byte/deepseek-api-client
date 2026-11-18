@@ -10,7 +10,9 @@ on:
       - 'src/**'
       - 'index.html'
       - 'assets/android/**'
+      - 'native/**'
       - 'scripts/android-icons.mjs'
+      - 'scripts/android-patch.mjs'
       - '.github/workflows/android.yml'
 
 permissions:
@@ -41,7 +43,6 @@ jobs:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
           echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -61,6 +62,9 @@ jobs:
             npx cap add android
             npx cap sync android
           fi
+
+      - name: Inject native login plugin
+        run: node scripts/android-patch.mjs
 
       - name: Generate launcher icons
         run: |
@@ -83,19 +87,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          cp android/app/build/outputs/apk/debug/app-debug.apk "DeepSeek-API-Client-0.1.0-debug.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "DeepSeek-API-Client-0.2.0-debug.apk"
           NOTES=$(printf '%s\n' \
             "可直接安装到安卓手机的安装包（调试签名，非应用商店版本）。" \
             "" \
             "- 包名：com.lizhengyang.deepseekapi" \
             "- 支持 Android 5.1（API 22）及以上" \
             "- 首次安装需在系统设置中允许「安装未知来源应用」" \
+            "- v0.2：登录凭证自动识别 + App 内官方账号登录 + 导出链接一键导入" \
             "" \
-            "安装后打开「DeepSeek API 版」，粘贴 DeepSeek 开放平台的 API Key 即可登录，计费走你自己的 API 余额。详细说明见 docs/android.md。")
-          if gh release view android-latest >/dev/null 2>&1; then
-            echo "release 已存在，仅替换资产"
-          else
-            gh release create android-latest --target "$GITHUB_SHA" --title "安卓 APK · DeepSeek API 版 0.1.0" --notes "$NOTES" --latest=false
-          fi
-          gh release upload android-latest "DeepSeek-API-Client-0.1.0-debug.apk" --clobber
+            "安装后打开「DeepSeek API 版」，粘贴 API Key（或点「在 App 内登录官方账号」）即可登录，计费走你自己的 API 余额。详细说明见 docs/android.md。")
+          gh release view android-latest >/dev/null 2>&1 || \
+            gh release create android-latest --target "$GITHUB_SHA" --title "安卓 APK · DeepSeek API 版" --notes "$NOTES" --latest=false
+          gh release edit android-latest --notes "$NOTES" --latest=false >/dev/null 2>&1 || true
+          gh release upload android-latest "DeepSeek-API-Client-0.2.0-debug.apk" --clobber
           gh release view android-latest
