@@ -8,7 +8,6 @@ import { ChatView } from './components/ChatView';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ImportDialog } from './components/ImportDialog';
 import { Logo } from './components/Logo';
-import { X } from 'lucide-react';
 
 export default function App() {
   const [drawer, setDrawer] = useState(false);
@@ -98,14 +97,9 @@ export default function App() {
 
       {drawer && (
         <div className="fixed inset-0 z-30 flex lg:hidden">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setDrawer(false)} />
-          <div className="fade-in relative z-10 h-full w-[86%] max-w-[320px] shadow-xl">
-            <div className="absolute right-2 top-3 z-10">
-              <button type="button" onClick={() => setDrawer(false)} className="rounded-lg p-2 text-muted">
-                <X size={18} />
-              </button>
-            </div>
-            <Sidebar {...sidebarProps} compact />
+          <div className="mask-in absolute inset-0 bg-black/35" onClick={() => setDrawer(false)} />
+          <div className="drawer-in relative z-10 h-full w-[84%] max-w-[300px] overflow-hidden shadow-xl">
+            <Sidebar {...sidebarProps} compact onClose={() => setDrawer(false)} />
           </div>
         </div>
       )}
@@ -132,7 +126,7 @@ export default function App() {
       {chat.toast && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4">
           <div
-            className={`fade-in max-w-[90%] rounded-full px-4 py-2 text-[12.5px] shadow-lg ${
+            className={`pop-in max-w-[90%] rounded-full px-4 py-2 text-[12.5px] shadow-lg ${
               chat.toast.kind === 'error'
                 ? 'bg-[#fdecec] text-[#c53131]'
                 : 'bg-[color:var(--bg-card)] text-ink'
