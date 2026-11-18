@@ -13,6 +13,7 @@
   --border: #e8eaee;
   --composer-bg: #ffffff;
   --bubble-user: #f2f3f5;
+  --shadow-float: 0 8px 30px rgba(17, 20, 30, 0.12);
 }
 
 [data-theme='dark'] {
@@ -26,6 +27,7 @@
   --border: #2c2d34;
   --composer-bg: #232429;
   --bubble-user: #2a2c33;
+  --shadow-float: 0 8px 30px rgba(0, 0, 0, 0.45);
 }
 
 * {
@@ -179,5 +181,71 @@ body {
   from {
     opacity: 0;
     transform: translateY(4px);
+  }
+}
+
+/* 抽屉与弹层动效 */
+.drawer-in {
+  animation: drawer-in 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(-101%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.mask-in {
+  animation: mask-in 0.22s ease-out both;
+}
+@keyframes mask-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.pop-in {
+  animation: pop-in 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.sheet-in {
+  animation: sheet-in 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes sheet-in {
+  from {
+    transform: translateX(101%);
+  }
+}
+
+/* 新消息入场 */
+.msg-in {
+  animation: msg-in 0.24s ease-out both;
+}
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer-in,
+  .mask-in,
+  .pop-in,
+  .sheet-in,
+  .msg-in,
+  .fade-in {
+    animation: none;
+  }
+  .caret::after {
+    animation: none;
   }
 }

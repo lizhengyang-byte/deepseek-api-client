@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Menu, MoreHorizontal, Trash2, Pencil, Pin } from 'lucide-react';
+import { Code2, Lightbulb, ListChecks, Menu, MoreHorizontal, PenLine, Trash2, Pencil, Pin } from 'lucide-react';
 import type { ChatMessage, Conversation } from '../types';
 import { MessageItem } from './MessageItem';
 import { Composer } from './Composer';
@@ -14,10 +14,10 @@ interface Props {
 }
 
 const SUGGESTIONS = [
-  { title: '帮我解释一个概念', desc: '用通俗的比喻讲清反向传播' },
-  { title: '写一段代码', desc: '用 TypeScript 实现 LRU 缓存' },
-  { title: '润色一段文字', desc: '把工作总结改得更有说服力' },
-  { title: '整理一份清单', desc: '三天成都 citywalk 行程安排' },
+  { title: '帮我解释一个概念', desc: '用通俗的比喻讲清反向传播', icon: Lightbulb },
+  { title: '写一段代码', desc: '用 TypeScript 实现 LRU 缓存', icon: Code2 },
+  { title: '润色一段文字', desc: '把工作总结改得更有说服力', icon: PenLine },
+  { title: '整理一份清单', desc: '三天成都 citywalk 行程安排', icon: ListChecks },
 ];
 
 export function ChatView({ conversation, messages, streaming, onOpenMenu }: Props) {
@@ -60,14 +60,19 @@ export function ChatView({ conversation, messages, streaming, onOpenMenu }: Prop
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col bg-[color:var(--bg-page)]">
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-3">
-        <button type="button" onClick={onOpenMenu} className="rounded-lg p-2 text-muted hover:text-ink lg:hidden">
+      <header className="flex h-14 shrink-0 items-center gap-1.5 border-b border-line bg-[color:var(--bg-page)]/95 px-2 backdrop-blur">
+        <button
+          type="button"
+          onClick={onOpenMenu}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:text-ink active:scale-95 lg:hidden"
+          aria-label="打开菜单"
+        >
           <Menu size={19} />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-medium">{conversation?.title ?? 'DeepSeek'}</p>
+          <p className="truncate text-[15px] font-medium leading-tight">{conversation?.title ?? 'DeepSeek'}</p>
           {conversation?.source === 'imported' && (
-            <p className="text-[11px] text-muted">来自官方导出数据</p>
+            <p className="text-[11px] leading-4 text-muted">来自官方导出数据</p>
           )}
         </div>
         {conversation && (
@@ -75,14 +80,15 @@ export function ChatView({ conversation, messages, streaming, onOpenMenu }: Prop
             <button
               type="button"
               onClick={() => setMenuOpen((value) => !value)}
-              className="rounded-lg p-2 text-muted hover:text-ink"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:text-ink active:scale-95"
+              aria-label="更多操作"
             >
               <MoreHorizontal size={19} />
             </button>
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-10 z-20 w-40 overflow-hidden rounded-xl border border-line bg-[color:var(--bg-surface)] py-1 shadow-lg">
+                <div className="pop-in absolute right-0 top-10 z-20 w-40 overflow-hidden rounded-xl border border-line bg-[color:var(--bg-surface)] py-1 shadow-lg">
                   <button
                     type="button"
                     className="flex w-full items-center gap-2 px-3 py-2 text-[13px] hover:bg-[color:var(--bg-card)]"
@@ -128,10 +134,10 @@ export function ChatView({ conversation, messages, streaming, onOpenMenu }: Prop
           <div className="mx-auto flex h-full max-w-[780px] flex-col justify-center px-6 pb-10">
             <div className="fade-in">
               <div className="flex items-center gap-3">
-                <Logo size={40} />
+                <Logo size={42} />
                 <div>
-                  <h1 className="text-[22px] font-semibold leading-tight">我是 DeepSeek</h1>
-                  <p className="mt-1 text-[13.5px] text-muted">通过官方 API 对话，按用量计费</p>
+                  <h1 className="text-[22px] font-semibold leading-tight">我是 DeepSeek，很高兴见到你！</h1>
+                  <p className="mt-1 text-[13.5px] text-muted">可以使用自己的 API 余额继续之前的对话</p>
                 </div>
               </div>
               <div className="mt-8 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -142,10 +148,13 @@ export function ChatView({ conversation, messages, streaming, onOpenMenu }: Prop
                     onClick={() => {
                       setInput(item.desc);
                     }}
-                    className="rounded-card border border-line bg-[color:var(--bg-card)] px-4 py-3 text-left transition hover:border-brand/40 hover:bg-[color:var(--brand-soft)]"
+                    className="group rounded-card border border-line bg-[color:var(--bg-card)] px-4 py-3 text-left transition hover:border-brand/40 hover:bg-[color:var(--brand-soft)] active:scale-[0.99]"
                   >
-                    <p className="text-[13.5px] font-medium">{item.title}</p>
-                    <p className="mt-1 text-[12px] leading-5 text-muted">{item.desc}</p>
+                    <div className="flex items-center gap-1.5">
+                      <item.icon size={14} className="text-brand" />
+                      <p className="text-[13.5px] font-medium">{item.title}</p>
+                    </div>
+                    <p className="mt-1 pl-[22px] text-[12px] leading-5 text-muted">{item.desc}</p>
                   </button>
                 ))}
               </div>
