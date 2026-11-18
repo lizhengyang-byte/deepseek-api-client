@@ -4,6 +4,7 @@ import { db, getMessages, listConversations, putMessages } from '../lib/db';
 import { ApiError, chatCompletion, estimateTokens } from '../lib/deepseek';
 import { createWebSession, webChat } from '../lib/web';
 import { calcCost, titleFromText, trimContext } from '../lib/usage';
+import { decideSearch, runSearch } from '../lib/agent';
 import { uid } from '../lib/utils';
 import { useAuth } from './auth';
 import { useSettings } from './settings';
@@ -117,8 +118,7 @@ export const useChat = create<ChatStore>((set, get) => ({
     const trimmed = text.trim();
     if (!trimmed || get().streaming) return;
 
-    let conversation =
-      get().conversations.find((item) => item.id === get().activeId) ?? null;
+    let conversation = get().conversations.find((item) => item.id === get().activeId) ?? null;
     if (!conversation) conversation = await get().createConversation();
 
     const conversationId = conversation.id;
@@ -296,10 +296,49 @@ async function runAssistant(conversationId: string, history: ChatMessage[]): Pro
   controller = new AbortController();
   const signal = controller.signal;
 
+  // —— 最小 Agent：只有「联网搜索」一个工具，模型自己决定搜不搜，最多搜一次 ——
+  let searchBlock = '';
+  let searchSources: { title: string; url: string }[] = [];
+  const note = (text: string) =>
+    useChat.setState((state) => ({
+      messages: state.messages.map((message) => (message.id === assistantId ? { ...message, content: text } : message)),
+    }));
+
   let promptTokens = 0;
   let completionTokens = 0;
 
   try {
+    if (settings.searchEnabled && auth.mode === 'apikey' && auth.apiKey) {
+      const lastUser = [...history].reverse().find((message) => message.role === 'user');
+      const question = lastUser?.content ?? '';
+      let query: string | null = null;
+      try {
+        note('正在判断是否需要联网…');
+        query = await decideSearch({
+          baseUrl: settings.baseUrl,
+          apiKey: auth.apiKey,
+          question,
+          signal,
+        });
+      } catch {
+        query = null;
+      }
+      if (query) {
+        try {
+          note(`正在搜索「${query}」…`);
+          const result = await runSearch(query, settings, signal);
+          searchBlock = result.block;
+          searchSources = result.sources;
+          note('正在整理搜索结果…');
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : '搜索失败';
+          store.notify(reason, 'error');
+        }
+      } else {
+        note('');
+      }
+    }
+
     if (auth.mode === 'web') {
       if (!auth.webToken) throw new ApiError('网页令牌已失效，请重新登录', 401);
       let sessionId = webSessions.get(conversationId);
@@ -335,10 +374,13 @@ async function runAssistant(conversationId: string, history: ChatMessage[]): Pro
         baseUrl: settings.baseUrl,
         apiKey: auth.apiKey,
         model,
-        messages: context.map((message) => ({
-          role: message.role,
-          content: message.role === 'system' ? `[系统设定] ${message.content}` : message.content,
-        })),
+        messages: [
+          ...(searchBlock ? [{ role: 'system' as const, content: searchBlock }] : []),
+          ...context.map((message) => ({
+            role: message.role,
+            content: message.role === 'system' ? `[系统设定] ${message.content}` : message.content,
+          })),
+        ],
         temperature: settings.temperature,
         maxTokens: settings.maxTokens,
         signal,
@@ -358,6 +400,11 @@ async function runAssistant(conversationId: string, history: ChatMessage[]): Pro
     if (flushTimer !== null) {
       window.clearTimeout(flushTimer);
       flushTimer = null;
+    }
+
+    if (searchSources.length) {
+      const list = searchSources.map((item, index) => `${index + 1}. [${item.title}](${item.url})`).join('\n');
+      buffers.content += `\n\n---\n**搜索来源**\n${list}`;
     }
 
     const finished: ChatMessage = {

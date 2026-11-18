@@ -1,7 +1,7 @@
 {
   "name": "deepseek-api-client",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "module",
   "description": "非官方 DeepSeek 客户端：官方账号登录、API 计费、官方导出数据导入与续聊",
   "license": "MIT",
@@ -15,9 +15,9 @@
     "screenshots": "node scripts/screenshots.mjs",
     "android:add": "npx cap add android",
     "android:sync": "npm run build && npx cap sync android",
-    "android:patch": "node scripts/android-patch.mjs",
+    "android:apk": "npm run android:sync && npm run android:patch && node scripts/android-icons.mjs && cd android && ./gradlew assembleDebug",
     "android:icons": "node scripts/android-icons.mjs",
-    "android:apk": "npm run android:sync && npm run android:patch && node scripts/android-icons.mjs && cd android && ./gradlew assembleDebug"
+    "android:patch": "node scripts/android-patch.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.3",
