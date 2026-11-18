@@ -231,15 +231,19 @@ async function main() {
 
   await page.click('text=导入官方数据');
   await page.waitForTimeout(400);
-  await page.setInputFiles('input[type="file"]', samplePath);
-  await page.waitForSelector('text=已解析', { timeout: 10000 });
-  await shot('05-import');
 
-  // 链接导入：切到「下载链接」页签，填一个演示链接（不发真实请求）
+  // 链接导入：先切到「下载链接」页签截一张干净的空态，填一个演示链接（不发真实请求）
   await page.click('button:has-text("下载链接")');
   await page.waitForTimeout(300);
   await page.fill('input[placeholder^="粘贴官方数据导出"]', 'https://example.com/deepseek-export-2026-11.zip');
   await shot('11-import-link');
+
+  // 再切回「本地文件」，走真实解析并截预览态
+  await page.click('button:has-text("本地文件")');
+  await page.waitForTimeout(300);
+  await page.setInputFiles('input[type="file"]', samplePath);
+  await page.waitForSelector('text=已解析', { timeout: 10000 });
+  await shot('05-import');
 
   await page.click('text=取消');
   await page.waitForTimeout(400);
