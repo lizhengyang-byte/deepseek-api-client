@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths:
       - 'scripts/screenshots.mjs'
+      - 'src/**'
+      - 'index.html'
+      - 'tailwind.config.js'
       - '.github/workflows/screenshots.yml'
 
 permissions:
