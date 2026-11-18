@@ -74,6 +74,11 @@ export interface Settings {
   baseUrl: string;
   pricing: Record<ModelId, Pricing>;
   fontSize: 'sm' | 'md' | 'lg';
+  /** 最小 Agent：开启后由模型自己判断是否需要联网检索一次 */
+  searchEnabled: boolean;
+  searchProvider: 'searxng' | 'tavily' | 'custom';
+  searchEndpoint: string;
+  searchKey: string;
 }
 
 export interface ImporterMessage {

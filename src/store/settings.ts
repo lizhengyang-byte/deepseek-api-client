@@ -14,6 +14,10 @@ const DEFAULTS: Settings = {
   baseUrl: 'https://api.deepseek.com',
   pricing: DEFAULT_PRICING,
   fontSize: 'md',
+  searchEnabled: false,
+  searchProvider: 'searxng',
+  searchEndpoint: '',
+  searchKey: '',
 };
 
 interface SettingsStore extends Settings {
@@ -48,6 +52,10 @@ export const useSettings = create<SettingsStore>((set, get) => ({
       baseUrl: next.baseUrl,
       pricing: next.pricing,
       fontSize: next.fontSize,
+      searchEnabled: next.searchEnabled,
+      searchProvider: next.searchProvider,
+      searchEndpoint: next.searchEndpoint,
+      searchKey: next.searchKey,
     };
     set(values);
     void saveSetting('settings', snapshot);
