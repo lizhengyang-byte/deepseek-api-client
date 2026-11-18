@@ -36,6 +36,12 @@ jobs:
           set +e
           npm run screenshots > shot.log 2>&1
           code=$?
+          # 失败时把尾段写成注解，未登录也能在运行页看到
+          if [ $code -ne 0 ]; then
+            tail -12 shot.log | while IFS= read -r line; do
+              echo "::error::${line//$'%'/%25}"
+            done
+          fi
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           tail -80 shot.log >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
