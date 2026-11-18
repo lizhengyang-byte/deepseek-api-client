@@ -87,7 +87,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          cp android/app/build/outputs/apk/debug/app-debug.apk "DeepSeek-API-Client-0.2.1-debug.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "DeepSeek-API-Client-0.3.0-debug.apk"
           NOTES=$(printf '%s\n' \
             "可直接安装到安卓手机的安装包（调试签名，非应用商店版本）。" \
             "" \
@@ -96,10 +96,11 @@ jobs:
             "- 首次安装需在系统设置中允许「安装未知来源应用」" \
             "- v0.2：登录凭证自动识别 + App 内官方账号登录 + 导出链接一键导入" \
             "- v0.2.1：移动端抽屉里「设置」与「关闭」不再重叠；头部、输入栏、消息操作、抽屉与弹层动效全面对齐官方观感" \
+            "- v0.3.0：新增最小 Agent：输入栏「联网」开关，模型自己判断要不要检索一次，答案末尾附搜索来源；不加多步规划与工具循环" \
             "" \
             "安装后打开「DeepSeek API 版」，粘贴 API Key（或点「在 App 内登录官方账号」）即可登录，计费走你自己的 API 余额。详细说明见 docs/android.md。")
           gh release view android-latest >/dev/null 2>&1 || \
             gh release create android-latest --target "$GITHUB_SHA" --title "安卓 APK · DeepSeek API 版" --notes "$NOTES" --latest=false
           gh release edit android-latest --notes "$NOTES" --latest=false >/dev/null 2>&1 || true
-          gh release upload android-latest "DeepSeek-API-Client-0.2.1-debug.apk" --clobber
+          gh release upload android-latest "DeepSeek-API-Client-0.3.0-debug.apk" --clobber
           gh release view android-latest

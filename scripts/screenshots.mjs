@@ -267,6 +267,13 @@ async function main() {
   await page.click('button[title="切换主题"]');
   await page.waitForTimeout(500);
 
+  // 联网搜索配置：输入栏的「联网」在未配置时会唤出这张面板
+  await page.click('button[title="联网搜索"]');
+  await page.waitForTimeout(450);
+  await shot('13-search-setup');
+  await page.click('div.fixed.inset-0.z-50 button[aria-label="关闭"]');
+  await page.waitForTimeout(300);
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(700);
   await shot('10-mobile-chat');
