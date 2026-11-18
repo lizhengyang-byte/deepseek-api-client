@@ -75,17 +75,18 @@ jobs:
         run: |
           set -e
           cp android/app/build/outputs/apk/debug/app-debug.apk "DeepSeek-API-Client-0.1.0-debug.apk"
-          gh release view android-latest >/dev/null 2>&1 || \
-            gh release create android-latest \
-              --target "$GITHUB_SHA" \
-              --title "安卓 APK · DeepSeek API 版 0.1.0" \
-              --notes "可直接安装到安卓手机的安装包（调试签名，非应用商店版本）。
-
-- 包名：com.lizhengyang.deepseekapi
-- 支持 Android 5.1（API 22）及以上
-- 首次安装需在系统设置中允许「安装未知来源应用」
-
-安装后打开「DeepSeek API 版」，粘贴 DeepSeek 开放平台的 API Key 即可登录，计费走你自己的 API 余额。详细说明见 docs/android.md。" \
-              --latest=false
+          NOTES=$(printf '%s\n' \
+            "可直接安装到安卓手机的安装包（调试签名，非应用商店版本）。" \
+            "" \
+            "- 包名：com.lizhengyang.deepseekapi" \
+            "- 支持 Android 5.1（API 22）及以上" \
+            "- 首次安装需在系统设置中允许「安装未知来源应用」" \
+            "" \
+            "安装后打开「DeepSeek API 版」，粘贴 DeepSeek 开放平台的 API Key 即可登录，计费走你自己的 API 余额。详细说明见 docs/android.md。")
+          if gh release view android-latest >/dev/null 2>&1; then
+            echo "release 已存在，仅替换资产"
+          else
+            gh release create android-latest --target "$GITHUB_SHA" --title "安卓 APK · DeepSeek API 版 0.1.0" --notes "$NOTES" --latest=false
+          fi
           gh release upload android-latest "DeepSeek-API-Client-0.1.0-debug.apk" --clobber
           gh release view android-latest
