@@ -5,6 +5,7 @@ import { MessageItem } from './MessageItem';
 import { Composer } from './Composer';
 import { Logo } from './Logo';
 import { useChat } from '../store/chat';
+import { SearchDialog } from './SearchDialog';
 
 interface Props {
   conversation: Conversation | null;
@@ -23,6 +24,7 @@ const SUGGESTIONS = [
 export function ChatView({ conversation, messages, streaming, onOpenMenu }: Props) {
   const [input, setInput] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchSetup, setSearchSetup] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
   const send = useChat((state) => state.send);
@@ -184,7 +186,9 @@ export function ChatView({ conversation, messages, streaming, onOpenMenu }: Prop
         onSend={submit}
         onStop={stop}
         streaming={streaming}
+        onConfigureSearch={() => setSearchSetup(true)}
       />
+      <SearchDialog open={searchSetup} onClose={() => setSearchSetup(false)} />
     </div>
   );
 }

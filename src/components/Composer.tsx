@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ArrowUp, Paperclip, Square } from 'lucide-react';
+import { ArrowUp, Globe, Paperclip, Square } from 'lucide-react';
 import { useSettings } from '../store/settings';
 
 interface Props {
@@ -9,11 +9,14 @@ interface Props {
   onStop: () => void;
   streaming: boolean;
   disabled?: boolean;
+  onConfigureSearch: () => void;
 }
 
-export function Composer({ value, onChange, onSend, onStop, streaming, disabled }: Props) {
+export function Composer({ value, onChange, onSend, onStop, streaming, disabled, onConfigureSearch }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const model = useSettings((state) => state.model);
+  const searchEnabled = useSettings((state) => state.searchEnabled);
+  const searchEndpoint = useSettings((state) => state.searchEndpoint);
   const patch = useSettings((state) => state.patch);
 
   useEffect(() => {
@@ -52,6 +55,25 @@ export function Composer({ value, onChange, onSend, onStop, streaming, disabled 
               disabled
             >
               <Paperclip size={17} />
+            </button>
+            <button
+              type="button"
+              title="联网搜索"
+              onClick={() => {
+                const ready = searchEndpoint.trim().length > 0;
+                if (!ready) {
+                  onConfigureSearch();
+                  return;
+                }
+                patch({ searchEnabled: !searchEnabled });
+              }}
+              className={`flex items-center gap-1 rounded-full px-2 py-1.5 text-[12.5px] transition active:scale-95 ${
+                searchEnabled
+                  ? 'bg-[color:var(--brand-soft)] font-medium text-brand'
+                  : 'text-muted hover:bg-[color:var(--bg-card)] hover:text-ink'
+              }`}
+            >
+              <Globe size={13} /> 联网
             </button>
             <button
               type="button"
